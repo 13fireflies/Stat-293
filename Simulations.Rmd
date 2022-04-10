@@ -1,0 +1,11 @@
+---
+title: "293 Project Simulations"
+author: "Jason"
+date: '2022-04-10'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library("designmatch")
+library("ggplot2")
+```
