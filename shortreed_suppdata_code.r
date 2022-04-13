@@ -1,4 +1,4 @@
-## Writen for R version 3.2.2
+## Written for R version 3.2.2
 library(lqa) # version 1.0-3
 library(MASS) # version 3.3.1
   
