@@ -57,3 +57,33 @@ end_time <- Sys.time()
 end_time - start_time
 ```
 
+
+
+
+Designmatch Example:
+```{r}
+data("lalonde", package = "designmatch")
+covs = c("age", "education", "black", "hispanic", "married", "nodegree", "re74",
+"re75")
+mom_targets = colMeans(lalonde[, covs])
+cov_sds = apply(lalonde[, covs], 2, sd)
+mom_tols = 0.05 * cov_sds
+
+t_ind = lalonde$treatment
+mom_covs = as.matrix(lalonde[, covs])
+mom = list(covs = mom_covs, tols = mom_tols, targets = mom_targets)
+
+# Solver:
+
+t_max = 60*30
+solver = "gurobi"
+approximate = 0
+solver = list(name = solver, t_max = t_max, approximate = approximate, round_cplex = 0, trace = 0)
+
+## Performing profile matching
+pmatch_out = profmatch(t_ind, mom, solver)
+## Selecting the units that are matched
+lalonde_matched = lalonde[pmatch_out$id,]
+```
+
+
