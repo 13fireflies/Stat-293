@@ -1,8 +1,26 @@
 ## Written for R version 3.2.2
 library(lqa) # version 1.0-3
 library(MASS) # version 3.3.1
-  
+
+# look like maybe corresponding packages that do similar functions
+# Look at: Ivon diez, Machine learning in the estimation of causal effects: targeted minimum loss-based estimation and double/debiased machine learning
 # set information for simulating coviariates
+
+# Split samples and design sensitivity in observational studies: Rosenbaum, look at packages
+# sometimes can directly email the maintainer of the package; explain who you are, and for a class project
+# could email both of them
+# for supplementary materials, email first collab for proofs
+
+# clarity and precision over beautiful writing; dont 
+# bullet list for contributions is very nice, very good for a final project
+# very clear for a final project
+
+# dont want simulation results to be a hodge-podge of all the results
+# still want everything in a logical case, limited case is an argument
+# would include as many experiments as you've done in the appendix; supplement should be free-standing
+
+# let me know if by Wed or Thur, if lqa doesn't work out well
+
 mean_x = 0 
 sig_x = 1
 rho = 0
@@ -105,9 +123,9 @@ for( lil in names(lambda_vec) ){
   ig = gamma_vals[lil]
 
   ### create the outcome adaptive lasso penalty with coefficient specific weights determined by outcome model
-  oal_pen = adaptive.lasso(lambda=n^(il),al.weights = abs(betaXY)^(-ig) )
+  oal_pen = adaptive.lasso(lambda=n^(il), al.weights = abs(betaXY)^(-ig))
   ### run outcome-adaptive lasso model with appropriate penalty
-  logit_oal = lqa( w.full.form, data=Data, penalty=oal_pen, family=binomial(logit) )
+  logit_oal = lqa(w.full.form, data=Data, penalty=oal_pen, family=binomial(logit))
   # generate propensity score
   Data[,paste("f.pA",lil,sep="")] = predict(logit_oal)$mu.new
   # save propensity score coefficients

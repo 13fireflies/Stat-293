@@ -13,8 +13,8 @@ library("Matrix")
 ```
 
 Pre-treat = c(“x1...)
-Cobalt::bal.tab( x = df[,pre-treat], treat = df$y, continuous = “std”)
-Library(Matching )
+Cobalt::bal.tab(x = df[,pre-treat], treat = df$y, continuous = “std”)
+Library(Matching)
 
 
 Simulation Parameters:
