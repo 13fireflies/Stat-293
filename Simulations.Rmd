@@ -5,17 +5,23 @@ date: '2022-04-10'
 output: pdf_document
 ---
 
+TO-DO: configure gurobi
+
 ```{r setup, include=FALSE}
 library("designmatch")
 library("ggplot2")
 library("mvtnorm")
 library("Matrix")
+library("dplyr")
 ```
 
 Pre-treat = c(“x1...)
 Cobalt::bal.tab(x = df[,pre-treat], treat = df$y, continuous = “std”)
 Library(Matching)
 
+Alternative to Shortreed: Yang et al., Doubly robust inference ..., (2020)
+
+### Simulate Data 
 
 Simulation Parameters:
 
@@ -49,6 +55,62 @@ samp_data <- function(seed=293, sampsize=100, paramrep=3){
 }
 ```
 
+Data Generation Code:
+```{r}
+sampsize <- 10000
+seed <- 293
+paramrep <- 1
+numparams <- paramrep*6
+
+set.seed(seed)
+y <- rbinom(sampsize, size=1, prob=0.5)
+test_data <- cbind(y, samp_data(seed=seed, sampsize=sampsize, paramrep=paramrep))
+```
+
+
+
+
+
+### Cardmatch
+```{r}
+start_time <- Sys.time()
+# Load, sort, and attach data
+test_data = test_data[order(test_data$y, decreasing = TRUE), ]
+
+# Treatment indicator; note that the data needs to be sorted in decreasing order
+# according to this treatment indicator
+t_ind = test_data$y
+
+# Moment Balance
+mom_covs = as.matrix(test_data %>% dplyr::select(paste("X", c(1:(numparams - paramrep)), sep="")))
+mom_tols = round(absstddif(mom_covs, t_ind, .05), 2)
+mom = list(covs = mom_covs, tols = mom_tols)
+
+# Fine balance
+fine_covs = as.matrix(test_data %>% dplyr::select(paste("X", c((numparams-paramrep + 1):numparams), sep="")))
+fine = list(covs = fine_covs)
+
+# Solver options
+solver = "glpk"
+approximate = 1 # not exact!
+t_max = 60*5 # 5 minute maximum
+solver = list(name = solver, approximate = approximate, t_max = t_max,
+round_cplex = 0, trace = 0)
+# Match
+out_1 = cardmatch(t_ind, mom = mom, fine = fine, solver = solver)
+
+end_time <- Sys.time()
+end_time - start_time
+
+# Indices of the treated units and matched controls
+t_id_1 = out_1$t_id
+length(t_id_1)
+```
+
+
+
+### Examples from Papers, Documentation, StackOverflow
+
 For timing:
 ```{r}
 start_time <- Sys.time()
@@ -56,9 +118,6 @@ start_time <- Sys.time()
 end_time <- Sys.time()
 end_time - start_time
 ```
-
-
-
 
 Designmatch Example:
 ```{r}
@@ -86,4 +145,116 @@ pmatch_out = profmatch(t_ind, mom, solver)
 lalonde_matched = lalonde[pmatch_out$id,]
 ```
 
+Example cardmatch:
+```{r}
+# Load, sort, and attach data
+data(lalonde)
+lalonde = lalonde[order(lalonde$treatment, decreasing = TRUE), ]
+attach(lalonde)
+#################################
+# Example 1: cardinality matching
+#################################
+# Cardinality matching finds the largest matched sample of pairs that meets balance
+# requirements. Here the balance requirements are mean balance, fine balance and
+# exact matching for different covariates. The solver used is glpk with the
+# approximate option.
+# Treatment indicator; note that the data needs to be sorted in decreasing order
+# according to this treatment indicator
+t_ind = treatment
+t_ind
+# Distance matrix
+dist_mat = NULL
+# Subset matching weight
+subset_weight = 1
+# Moment balance: constrain differences in means to be at most .05 standard deviations apart
+mom_covs = cbind(age, education, black, hispanic, married, nodegree, re74, re75)
+mom_tols = round(absstddif(mom_covs, t_ind, .05), 2)
+mom = list(covs = mom_covs, tols = mom_tols)
+# Fine balance
+fine_covs = cbind(black, hispanic, married, nodegree)
+fine = list(covs = fine_covs)
+# Exact matching
+exact_covs = cbind(black)
+exact = list(covs = exact_covs)
+# Solver options
+# t_max = 60*5 max time
+solver = "glpk" # solver type
+approximate = 1
+solver = list(name = solver, approximate = approximate, # t_max = t_max
+round_cplex = 0, trace = 0)
+# Match
+out = bmatch(t_ind = t_ind, dist_mat = dist_mat, subset_weight = subset_weight,
+mom = mom, fine = fine, exact = exact, solver = solver)
+# Indices of the treated units and matched controls
+t_id = out$t_id
+c_id = out$c_id
+# Time
+out$time/60
+# Matched group identifier (who is matched to whom)
+# out$group_id
+# Assess mean balance
+# meantab(mom_covs, t_ind, t_id, c_id)
+# Assess fine balance (note here we are getting an approximate solution)
+# for (i in 1:ncol(fine_covs)) {
+# print(finetab(fine_covs[, i], t_id, c_id))
+# }
+# Assess exact matching balance
+# table(exact_covs[t_id]==exact_covs[c_id])
+```
+
+Example Cardmatch:
+
+```{r}
+# Load, sort, and attach data
+data(lalonde)
+lalonde = lalonde[order(lalonde$treatment, decreasing = TRUE), ]
+attach(lalonde)
+#################################
+# Step 1: use cardinality matching to find the largest sample of matched pairs for which
+# all the covariates are finely balanced.
+#################################
+# Discretize covariates
+quantiles = function(covar, n_q) {
+p_q = seq(0, 1, 1/n_q)
+val_q = quantile(covar, probs = p_q, na.rm = TRUE)
+covar_out = rep(NA, length(covar))
+for (i in 1:n_q) {
+if (i==1) {covar_out[covar<val_q[i+1]] = i}
+if (i>1 & i<n_q) {covar_out[covar>=val_q[i] & covar<val_q[i+1]] = i}
+if (i==n_q) {covar_out[covar>=val_q[i] & covar<=val_q[i+1]] = i}}
+covar_out
+}
+age_5 = quantiles(age, 5)
+education_5 = quantiles(education, 5)
+re74_5 = quantiles(re74, 5)
+re75_5 = quantiles(re75, 5)
+# Treatment indicator; note that the data needs to be sorted in decreasing order
+# according to this treatment indicator
+t_ind = treatment
+t_ind
+# Fine balance
+fine_covs = cbind(black, hispanic, married, nodegree, age_5, education_5, re74_5, re75_5)
+typeof(fine_covs)
+fine = list(covs = fine_covs)
+
+# Solver options
+t_max = 60*5
+solver = "glpk"
+approximate = 0
+solver = list(name = solver, t_max = t_max, approximate = approximate,
+round_cplex = 0, trace = 0)
+# Match
+out_1 = cardmatch(t_ind, fine = fine, solver = solver)
+# Indices of the treated units and matched controls
+t_id_1 = out_1$t_id
+length(t_id_1)
+# c_id_1 = out_1$c_id
+# Mean balance
+# covs = cbind(age, education, black, hispanic, married, nodegree, re74, re75)
+# meantab(covs, t_ind, t_id_1, c_id_1)
+# Fine balance (note here we are getting an approximate solution)
+# for (i in 1:ncol(fine_covs)) {
+# print(finetab(fine_covs[, i], t_id_1, c_id_1))
+# }
+```
 
