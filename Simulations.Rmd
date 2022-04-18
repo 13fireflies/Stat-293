@@ -13,6 +13,7 @@ library("ggplot2")
 library("mvtnorm")
 library("Matrix")
 library("dplyr")
+library("lqa")
 ```
 
 Pre-treat = c(“x1...)
