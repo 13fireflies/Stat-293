@@ -104,9 +104,45 @@ end_time - start_time
 
 # Indices of the treated units and matched controls
 t_id_1 = out_1$t_id
-length(t_id_1)
+length(t_id_1) #gives the total number of matches
 ```
 
+Test:
+```{r}
+
+start_time <- Sys.time()
+# Load, sort, and attach data
+test_data = test_data[order(test_data$y, decreasing = TRUE), ]
+
+# Treatment indicator; note that the data needs to be sorted in decreasing order
+# according to this treatment indicator
+t_ind = test_data$y
+
+# Moment Balance
+mom_covs = as.matrix(test_data %>% dplyr::select(paste("X", c(1:(numparams - paramrep)), sep="")))
+mom_tols = round(absstddif(mom_covs, t_ind, .05), 2)
+mom = list(covs = mom_covs, tols = mom_tols)
+
+# Fine balance
+fine_covs = as.matrix(test_data %>% dplyr::select(paste("X", c((numparams-paramrep + 1):numparams), sep="")))
+fine = list(covs = fine_covs)
+
+# Solver options
+solver = "glpk"
+approximate = 1 # not exact!
+t_max = 60*5 # 5 minute maximum
+solver = list(name = solver, approximate = approximate, t_max = t_max,
+round_cplex = 0, trace = 0)
+# Match
+out_1 = cardmatch(t_ind, mom = mom, fine = fine, solver = solver)
+
+end_time <- Sys.time()
+end_time - start_time
+
+# Indices of the treated units and matched controls
+t_id_1 = out_1$t_id
+length(t_id_1) #gives the total number of matches
+```
 
 
 ### Examples from Papers, Documentation, StackOverflow
