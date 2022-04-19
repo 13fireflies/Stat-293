@@ -158,6 +158,7 @@ cat("Number of Matches:", length(t_id), "\n") #gives the total number of matches
 ## ProfMatch 
 
 ```{r}
+start_time <- Sys.time()
 # Vector of treatment group indicators
 t_ind = test_data$y
 
@@ -179,6 +180,13 @@ solver = list(name = solver, t_max = t_max, approximate = approximate, round_cpl
 
 # Performing profile matching
 pmatch_out = profmatch(t_ind, mom, solver)
+
+end_time <- Sys.time()
+end_time - start_time
+
+# Indices of the treated units and matched controls
+t_id = pmatch_out$t_id
+cat("Number of Matches:", length(t_id), "\n") #gives the total number of matches
 ```
 
 
