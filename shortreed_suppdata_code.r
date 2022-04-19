@@ -32,9 +32,9 @@ pC = pI = pP = 2
 pS = p - (pC+pI+pP)
 var.list = c(paste("Xc",1:pC,sep=""),paste("Xp",1:pP,sep=""),paste("Xi",1:pI,sep=""),paste("Xs",1:pS,sep=""))
 # Set strength of relationship between covariates and outcome
-beta_v =  c( 0.6, 0.6, 0.6, 0.6, 0, 0, rep(0,p-6) )
+beta_v =  c( 0.6, 0.6, 0.6, 0.6, 0, 0, rep(0,p-6))
 # Set strength of relationship between covariates and treatment
-alpha_v = c( 1.0, 1.0,   0,   0, 1, 1,  rep(0,p-6) )
+alpha_v = c( 1.0, 1.0,   0,   0, 1, 1,  rep(0,p-6))
 names(beta_v) = names(alpha_v) = var.list
 ### set true average treatment effect
 bA = 0

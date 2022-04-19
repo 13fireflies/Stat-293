@@ -5,7 +5,13 @@ date: '2022-04-10'
 output: pdf_document
 ---
 
-TO-DO: configure gurobi
+To-Dos:
+- try other matching methods and compute their complexity
+-- make sure profmatch works
+NOTE: cplex code was commented out!
+- need data generation method for feature variable selection
+- try other feature variable selection methods
+-- encode OAL
 
 ```{r setup, include=FALSE}
 library("designmatch")
@@ -16,15 +22,10 @@ library("dplyr")
 library("lqa")
 ```
 
-Pre-treat = c(“x1...)
-Cobalt::bal.tab(x = df[,pre-treat], treat = df$y, continuous = “std”)
-Library(Matching)
+# Simulate Data 
 
-Alternative to Shortreed: Yang et al., Doubly robust inference ..., (2020)
-
-### Simulate Data 
-
-Simulation Parameters:
+## Matching
+Simulation for Matching:
 
 ```{r}
 samp_data <- function(seed=293, sampsize=100, paramrep=3){
@@ -56,23 +57,69 @@ samp_data <- function(seed=293, sampsize=100, paramrep=3){
 }
 ```
 
-Data Generation Code:
+Data Generation for Matching:
 ```{r}
 sampsize <- 10000
 seed <- 293
 paramrep <- 1
 numparams <- paramrep*6
+treated_prob <- 0.2
+# Similar to the parameters in samp_data, but now, we also have a 
+# treated_prob parameter, which gives the odds that an obs is
+
 
 set.seed(seed)
-y <- rbinom(sampsize, size=1, prob=0.5)
+y <- rbinom(sampsize, size=1, prob=treated_prob)
 test_data <- cbind(y, samp_data(seed=seed, sampsize=sampsize, paramrep=paramrep))
 ```
 
 
+# Matching Comparisons
+
+## BMatch
+
+```{r}
+#################################
+# Example 2: minimum distance matching
+################################# test_data[,-1]
+# The goal here is to minimize the total of distances between matched pairs. In
+# this example there are no covariate balance requirements. Again, the solver
+# used is glpk with the approximate option
+
+start_time <- Sys.time()
+# Treatment indicator
+t_ind = test_data$y
+# Matrix of covariates
+X_mat = test_data[,-1]
+# Distance matrix
+dist_mat = distmat(t_ind, X_mat)
+# Subset matching weight
+subset_weight = NULL
+# Total pairs to be matched
+total_groups = sum(t_ind)
+# Solver options
+t_max = 60*5
+solver = "glpk"
+approximate = 1
+solver = list(name = solver, t_max = t_max, approximate = approximate,
+round_cplex = 0, trace_cplex = 0)
+# Match
+out = bmatch(t_ind = t_ind, dist_mat = dist_mat, total_groups = total_groups,
+solver = solver)
+
+end_time <- Sys.time()
+end_time - start_time
+
+# Indices of the treated units and matched controls
+t_id = out$t_id
+cat("Number of Matches:", length(t_id), "\n") #gives the total number of matches
+# Total of distances between matched pairs
+out$obj_total
+```
 
 
 
-### Cardmatch
+## Cardmatch
 ```{r}
 start_time <- Sys.time()
 # Load, sort, and attach data
@@ -98,55 +145,33 @@ t_max = 60*5 # 5 minute maximum
 solver = list(name = solver, approximate = approximate, t_max = t_max,
 round_cplex = 0, trace = 0)
 # Match
-out_1 = cardmatch(t_ind, mom = mom, fine = fine, solver = solver)
+out = cardmatch(t_ind, mom = mom, fine = fine, solver = solver)
 
 end_time <- Sys.time()
 end_time - start_time
 
 # Indices of the treated units and matched controls
-t_id_1 = out_1$t_id
-length(t_id_1) #gives the total number of matches
+t_id = out$t_id
+cat("Number of Matches:", length(t_id), "\n") #gives the total number of matches
 ```
 
-Test:
+## ProfMatch
+
 ```{r}
 
-start_time <- Sys.time()
-# Load, sort, and attach data
-test_data = test_data[order(test_data$y, decreasing = TRUE), ]
-
-# Treatment indicator; note that the data needs to be sorted in decreasing order
-# according to this treatment indicator
-t_ind = test_data$y
-
-# Moment Balance
-mom_covs = as.matrix(test_data %>% dplyr::select(paste("X", c(1:(numparams - paramrep)), sep="")))
-mom_tols = round(absstddif(mom_covs, t_ind, .05), 2)
-mom = list(covs = mom_covs, tols = mom_tols)
-
-# Fine balance
-fine_covs = as.matrix(test_data %>% dplyr::select(paste("X", c((numparams-paramrep + 1):numparams), sep="")))
-fine = list(covs = fine_covs)
-
-# Solver options
-solver = "glpk"
-approximate = 1 # not exact!
-t_max = 60*5 # 5 minute maximum
-solver = list(name = solver, approximate = approximate, t_max = t_max,
-round_cplex = 0, trace = 0)
-# Match
-out_1 = cardmatch(t_ind, mom = mom, fine = fine, solver = solver)
-
-end_time <- Sys.time()
-end_time - start_time
-
-# Indices of the treated units and matched controls
-t_id_1 = out_1$t_id
-length(t_id_1) #gives the total number of matches
 ```
 
 
-### Examples from Papers, Documentation, StackOverflow
+# Feature Selection Comparisons
+
+## OAL
+
+```{r}
+
+```
+
+
+# Examples from Papers, Documentation, StackOverflow
 
 For timing:
 ```{r}
