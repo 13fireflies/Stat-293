@@ -155,25 +155,21 @@ t_id = out$t_id
 cat("Number of Matches:", length(t_id), "\n") #gives the total number of matches
 ```
 
-## ProfMatch
+## ProfMatch 
 
 ```{r}
-library(designmatch)
-data("lalonde", package = "designmatch")
-covs = c("age", "education", "black", "hispanic", "married", "nodegree", "re74",
-"re75")
-mom_targets = colMeans(lalonde[, covs])
-cov_sds = apply(lalonde[, covs], 2, sd)
-mom_tols = 0.05 * cov_sds
-
-## Vector of treatment group indicators
-t_ind = lalonde$treatment
+# Vector of treatment group indicators
+t_ind = test_data$y
 
 # Covariate matrix
 mom_covs = as.matrix(lalonde[, covs])
+X_mat = test_data[,-1]
+X_mat_sds = apply(X_mat, 2, sd)
+X_tols = 0.05 * X_mat_sds
+X_targets = colMeans(X_mat)
 
 # Putting it all together
-mom = list(covs = mom_covs, tols = mom_tols, targets = mom_targets)
+mom = list(covs = X_mat, tols = X_tols, targets = X_targets)
 
 t_max = 60*30
 solver = "gurobi"
@@ -183,9 +179,6 @@ solver = list(name = solver, t_max = t_max, approximate = approximate, round_cpl
 
 # Performing profile matching
 pmatch_out = profmatch(t_ind, mom, solver)
-
-# Selecting the units that are matched
-lalonde_matched = lalonde[pmatch_out$id,]
 ```
 
 
