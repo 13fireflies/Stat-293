@@ -476,7 +476,7 @@ test_data <- cbind(y, samp_data(seed=seed, sampsize=sampsize, paramrep=paramrep)
 
 ```{r}
 #################################
-# Example 2: minimum distance matching
+# Minimum Distance Matching
 ################################# test_data[,-1]
 # The goal here is to minimize the total of distances between matched pairs. In
 # this example there are no covariate balance requirements. Again, the solver
@@ -546,10 +546,64 @@ cat("Number of Matches:", length(t_id), "\n") #gives the total number of matches
 
 # Feature Selection Comparisons
 
+## Data Generation
+
+insufficient as var.list is used later on too
+```{r}
+samp_data_feat <- function(seed=293, mean_x=0, sig_x=1, rho=0, n=500, 
+                           stro=0.6, stre=1, bA=0){
+  set.seed(seed)
+  # mean_x: mean of x
+  # sig_x: sd of x
+  # rho: correlation between features from MVN
+  # in paper, tried rho =0, 0.2, 0.5
+  # n: sample size
+  # p: total number of predictors
+  # pC: true confounders
+  # pI: in outcome, not in exposure model
+  # pP: in exposure but not outcome
+  # stro: strength of relationship between covariates and outcome
+  # stre: strength of relationship between covariates and treatment
+  # bA: true average treatment effect
+  
+  # pS: # of spurious covariates
+  pS = p - (pC+pI+pP)
+  
+  # Set relationship between covariates and outcome
+  beta_v = c(rep(stro, pC + pI), rep(0, pS + pP))
+  # Y = \eta A + b'X + e
+  # Set relationship between covariates and treatment
+  alpha_v = c(rep(stre, pC), rep(0, pI), rep(stre, pP), rep(0, pS))
+  # logit(P(A)) = v'X
+  
+  var.list = c(paste("Xc",1:pC,sep=""), paste("Xp",1:pP,sep=""), 
+               paste("Xi",1:pI,sep=""), paste("Xs",1:pS,sep=""))
+  names(beta_v) = names(alpha_v) = var.list
+
+  ### simulate data
+  # generate features:
+  Sigma_x = matrix(rho*sig_x^2, nrow=p, ncol=p) 
+  diag(Sigma_x) = sig_x^2
+  Mean_x = rep(mean_x, p)
+  Data = as.data.frame(mvrnorm(n = n, mu=Mean_x, Sigma = Sigma_x, empirical = FALSE))
+  names(Data) = var.list
+  # generate treatment:
+  gA_x = rowSums(Data[,var.list]*matrix(alpha_v, nrow=n, ncol=p, byrow=TRUE))
+  pA = expit(gA_x)
+  Data$A = as.numeric(runif(n=length(pA)) < pA) # simulate A 
+  # generate outcomes:
+  gY_xA = rowSums(Data[,var.list]*matrix(beta_v, nrow=n, ncol=p, byrow=TRUE))   
+  Data$Y = gY_xA + rnorm(n=n,sd=sig_x)
+  Data$Y = Data$Y + Data$A*bA
+  return(Data) 
+}
+```
+
 
 ## OAL
 
 ```{r}
+set.seed(293)
 #### Problem Statment
 mean_x = 0 
 sig_x = 1
@@ -567,33 +621,41 @@ pS = p - (pC+pI+pP)
 # pP = In exposure but not outcome
 # rest = spurious covariates
 
-# Set strength of relationship between covariates and outcome
-beta_v =  c(0.6, 0.6, 0.6, 0.6, 0, 0, rep(0,p-6))
+stro=0.6
+stre=1
+
+# Set relationship between covariates and outcome
+beta_v = c(rep(stro, pC + pI), rep(0, pS + pP))
 # Y = \eta A + b'X + e
-# Set strength of relationship between covariates and treatment
-alpha_v = c(1, 1, 0, 0, 1, 1,  rep(0,p-6))
+# Set relationship between covariates and treatment
+alpha_v = c(rep(stre, pC), rep(0, pI), rep(stre, pP), rep(0, pS))
 # logit(P(A)) = v'X
 
 ### set true average treatment effect
 bA = 0
 
+var.list = c(paste("Xc",1:pC,sep=""), paste("Xp",1:pP,sep=""), 
+             paste("Xi",1:pI,sep=""), paste("Xs",1:pS,sep=""))
+names(beta_v) = names(alpha_v) = var.list
+
 ### simulate data
-Sigma_x = matrix(rho*sig_x^2,nrow=length(var.list),ncol=length(var.list)) 
+# generate features:
+Sigma_x = matrix(rho*sig_x^2, nrow=p, ncol=p) 
 diag(Sigma_x) = sig_x^2
-Mean_x = rep(mean_x,length(var.list))
+Mean_x = rep(mean_x, p)
 Data = as.data.frame(mvrnorm(n = n, mu=Mean_x, Sigma = Sigma_x, empirical = FALSE))
 names(Data) = var.list
-gA_x = rowSums(Data[,var.list]*matrix(alpha_v, nrow=n, ncol=length(var.list), byrow=TRUE))
+# generate treatment:
+gA_x = rowSums(Data[,var.list]*matrix(alpha_v, nrow=n, ncol=p, byrow=TRUE))
 pA = expit(gA_x)
 Data$A = as.numeric(runif(n=length(pA)) < pA) # simulate A 
-gY_xA = rowSums(Data[,var.list]*matrix(beta_v, nrow=n, ncol=length(var.list), byrow=TRUE))   
+# generate outcomes:
+gY_xA = rowSums(Data[,var.list]*matrix(beta_v, nrow=n, ncol=p, byrow=TRUE))   
 Data$Y = gY_xA + rnorm(n=n,sd=sig_x)
 Data$Y = Data$Y + Data$A*bA
 
 start_time <- Sys.time()
 ####### Begin setup for OAL
-var.list = c(paste("Xc",1:pC,sep=""),paste("Xp",1:pP,sep=""),paste("Xi",1:pI,sep=""),paste("Xs",1:pS,sep=""))
-names(beta_v) = names(alpha_v) = var.list
 
 # set vector of possible lambda's to try
 lambda_vec = c( -10, -5, -2, -1, -0.75, -0.5, -0.25, 0.25, 0.49)
@@ -604,12 +666,12 @@ gamma_convergence_factor = 2
 gamma_vals = 2*(gamma_convergence_factor - lambda_vec + 1)
 names(gamma_vals) = names(lambda_vec)
 
-# Normlize coviarates to have mean 0 and standard deviation 1
+# Normlize covariates to have mean 0 and standard deviation 1
 temp.mean = colMeans(Data[,var.list])
-Temp.mean = matrix(temp.mean,ncol=length(var.list),nrow=nrow(Data),byrow=TRUE)
+Temp.mean = matrix(temp.mean, ncol=length(var.list), nrow=nrow(Data), byrow=TRUE)
 Data[,var.list] = Data[,var.list] - Temp.mean
-temp.sd = apply(Data[var.list],FUN=sd,MARGIN=2)
-Temp.sd = matrix(temp.sd,ncol=length(var.list),nrow=nrow(Data),byrow=TRUE)
+temp.sd = apply(Data[var.list], FUN=sd, MARGIN=2)
+Temp.sd = matrix(temp.sd, ncol=length(var.list), nrow=nrow(Data), byrow=TRUE)
 Data[var.list] = Data[,var.list] / Temp.sd
 rm(list=c("temp.mean","Temp.mean","temp.sd","Temp.sd"))
 
@@ -621,7 +683,7 @@ betaXY = coef(lm.Y)[var.list]
 ## Want to save ATE, wAMD and propensity score coefficients for each lambda value
 ATE = wAMD_vec = rep(NA, length(lambda_vec))
 names(ATE) = names(wAMD_vec) = names(lambda_vec)
-coeff_XA = as.data.frame(matrix(NA,nrow=length(var.list),ncol=length(lambda_vec)))
+coeff_XA = as.data.frame(matrix(NA, nrow=length(var.list), ncol=length(lambda_vec)))
 names(coeff_XA) = names(lambda_vec)
 rownames(coeff_XA) = var.list
 
@@ -630,12 +692,8 @@ rownames(coeff_XA) = var.list
 ######################################################################################
 # weight model with all possible covariates included, this is passed into lasso function
 w.full.form = formula(paste("A~",paste(var.list,collapse="+")))
-# GOT ERROR:
-# no applicable method for 'lqa' applied to an object of class "formula"
-# decided to change lqa to lqa.formula to test it out
-# then got: Error: $ operator is invalid for atomic vectors
 
-
+# loop through lambda values
 for(lil in names(lambda_vec)){
   il = lambda_vec[lil]
   ig = gamma_vals[lil]
@@ -647,32 +705,23 @@ for(lil in names(lambda_vec)){
   logit_oal = lqa.formula(w.full.form, data=Data, penalty=oal_pen, family=binomial(logit))
   
   # generate propensity score
-  # ERROR-CHECKING:
-  # lqa.formula generates the correct class of lqa
-  # print(class(logit_oal))
-  
-  # CHANGED HERE from predict(logit_oal)$mu.new TO predict(logit_oal)
-  # because this caused the original Error: $ operator is invalid for atomic vectors
-  # Data[,paste("f.pA",lil,sep="")] = predict(logit_oal)$mu.new
   Data[,paste("f.pA",lil,sep="")] = predict(logit_oal)
   
   # save propensity score coefficients
   coeff_XA[var.list,lil] = coef(logit_oal)[var.list]
   
   # create inverse probability of treatment weights
-  Data[,paste("w",lil,sep="")] = create_weights(fp=Data[,paste("f.pA",lil,sep="")],fA=Data$A)
+  Data[,paste("w",lil,sep="")] = create_weights(fp=Data[,paste("f.pA",lil,sep="")], fA=Data$A)
   
   # estimate weighted absolute mean different over all covaraites using this lambda to generate weights
-  wAMD_vec[lil] = wAMD_function(DataM=Data,varlist=var.list,trt.var="A",
-			wgt=paste("w",lil,sep=""),beta=betaXY)$wAMD
+  wAMD_vec[lil] = wAMD_function(DataM=Data, varlist=var.list, trt.var="A",
+			wgt=paste("w",lil,sep=""), beta=betaXY)$wAMD
   
   # save ATE estimate for this lambda value
   ATE[lil] = ATE_est(fY=Data$Y,fw=Data[,paste("w",lil,sep="")],fA=Data$A)
   
-} # close loop through lambda values
+}
 
-# print out wAMD for all the lambda values tried
-wAMD_vec
 # find the lambda value that creates the smallest wAMD
 tt = which.min(wAMD_vec)
 
@@ -680,12 +729,8 @@ tt = which.min(wAMD_vec)
 end_time <- Sys.time()
 end_time - start_time
 
-
-# print out ATE corresponding to smallest wAMD value
-# ATE[tt]
-# print out the coefficients for the propensity score that corresponds with smallest wAMD value 
+# print out the coefficients for the propensity score that corresponds with smallest wAMD value
 coeff_XA[,tt]
-
 ```
 
 
