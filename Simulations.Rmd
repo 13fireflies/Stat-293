@@ -25,7 +25,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # Setup:
 
 Packages:
-```{r}```{r setup, include=FALSE}
+```{r setup, include=FALSE}
 # use (.packages()) to check if a package is properly loaded for your session
 library("designmatch")
 library("ggplot2")
@@ -39,7 +39,7 @@ library("MASS")
 
 ## Shortreed and Ertefaie: OAL
 Functions for Shortreed and Ertefaie's OAL:
-```{r}```{r setup, include=FALSE}
+```{r setup, include=FALSE}
 ### define some functions for generating data, ATE estimates, and the wAMD,
 expit = function(x){ 
  pr = ( exp(x) / (1+exp(x)) ) 
@@ -74,7 +74,7 @@ wAMD_function = function(DataM,varlist,trt.var,wgt,beta){
 
 ## ProfMatch function
 
-```{r}```{r setup, include=FALSE}
+```{r setup, include=FALSE}
 # From Eric's paper
 .oneprob_profmatch <- function(level, t_ind, mom, solver){
   mom_covs <- mom$covs
@@ -393,7 +393,7 @@ profmatch = function(t_ind, mom, solver = NULL) {
 }
 ```
 
-```{r}```{r setup, include=FALSE}
+```{r setup, include=FALSE}
 library(designmatch)
 start_time <- Sys.time()
 # Vector of treatment group indicators
@@ -455,18 +455,13 @@ samp_data <- function(seed=293, sampsize=100, paramrep=3){
 
 Data Generation for Matching:
 ```{r}
-library(Matrix)
-library(mvtnorm)
-sampsize <- 10000
-seed <- 293
-paramrep <- 1
-numparams <- paramrep*6
-treated_prob <- 0.2
+
 # Similar to the parameters in samp_data, but now, we also have a 
 # treated_prob parameter, which gives the odds that an obs is
 set.seed(seed)
 y <- rbinom(sampsize, size=1, prob=treated_prob)
 test_data <- cbind(y, samp_data(seed=seed, sampsize=sampsize, paramrep=paramrep))
+
 ```
 
 
@@ -474,49 +469,144 @@ test_data <- cbind(y, samp_data(seed=seed, sampsize=sampsize, paramrep=paramrep)
 
 ## BMatch
 
+Function for Simluation:
 ```{r}
 #################################
-# Minimum Distance Matching
-################################# test_data[,-1]
+# Minimum Distance Matching Simulation
+#################################
 # The goal here is to minimize the total of distances between matched pairs. In
 # this example there are no covariate balance requirements. Again, the solver
 # used is glpk with the approximate option
-start_time <- Sys.time()
-# Treatment indicator
-t_ind = test_data$y
-# Matrix of covariates
-X_mat = test_data[,-1]
-# Distance matrix
-dist_mat = distmat(t_ind, X_mat)
-# Subset matching weight
-subset_weight = NULL
-# Total pairs to be matched
-total_groups = sum(t_ind)
-# Solver options
-t_max = 60*5
-solver = "glpk"
-approximate = 1
-solver = list(name = solver, t_max = t_max, approximate = approximate,
-round_cplex = 0, trace_cplex = 0)
-# Match
-out = bmatch(t_ind = t_ind, dist_mat = dist_mat, total_groups = total_groups,
-solver = solver)
-end_time <- Sys.time()
-end_time - start_time
-# Indices of the treated units and matched controls
-t_id = out$t_id
-cat("Number of Matches:", length(t_id), "\n") #gives the total number of matches
+simbmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2, seed=293, numtrials=5){
+  # find tot # of parameters
+  numparams <- paramrep*6
+  
+  # records # times, matches
+  times <- numeric(numtrials)
+  nummatch <- numeric(numtrials)
+  
+  # for every trial:
+  for(tempseed in c(seed:(seed+numtrials-1))){
+    ### DATA GENERAION ###
+    set.seed(tempseed)
+    
+    # Treatment indicator
+    t_ind <- rbinom(sampsize, size=1, prob=treated_prob)
+    
+    # Matrix of covariates
+    X_mat = samp_data(seed=tempseed, sampsize=sampsize, paramrep=paramrep)
+    
+    ### BMATCH BEGINS ###
+    start_time <- Sys.time()
+    
+    # Distance matrix
+    dist_mat = distmat(t_ind, X_mat)
+    
+    # Subset matching weight
+    subset_weight = NULL
+    
+    # Total pairs to be matched
+    total_groups = sum(t_ind)
+    
+    # Solver options
+    t_max = 60*5
+    solver = "glpk"
+    approximate = 1
+    solver = list(name = solver, t_max = t_max, approximate = approximate,
+    round_cplex = 0, trace_cplex = 0)
+    
+    # Match
+    out = bmatch(t_ind = t_ind, dist_mat = dist_mat, total_groups = total_groups,
+    solver = solver)
+    
+    # record times + matches
+    end_time <- Sys.time()
+    # cat("Trial", tempseed-seed+1, "\n")
+    times[tempseed-seed+1] <- end_time - start_time
+    nummatch[tempseed-seed+1] <- length(out$t_id) + length(out$c_id)
+
+  }
 # Total of distances between matched pairs
-out$obj_total
+# out$obj_total
+  return(cbind(times, nummatch))
+}
+```
+
+Simulations:
+```{r}
+results = simbmatch()
 ```
 
 
-
 ## Cardmatch
+
+Simlations for cardmatch:
+```{r}
+simcmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2, seed=293, numtrials=5){
+  # find tot # of parameters
+  numparams <- paramrep*6
+  
+  # records # times, matches
+  times <- numeric(numtrials)
+  nummatch <- numeric(numtrials)
+  
+  # for every trial:
+  for(tempseed in c(seed:(seed+numtrials-1))){
+    ### DATA GENERAION ###
+    set.seed(tempseed)
+    
+    y <- rbinom(sampsize, size=1, prob=treated_prob)
+    test_data <- cbind(y, samp_data(seed=tempseed, sampsize=sampsize, paramrep=paramrep))
+
+    
+    ### CARDMATCH BEGINS ###
+    start_time <- Sys.time()
+    
+    # Load, sort, and attach data
+    test_data = test_data[order(test_data$y, decreasing = TRUE),]
+    
+    # Treatment indicator; note that the data needs to be sorted in decreasing order
+    # according to this treatment indicator
+    t_ind = test_data$y
+    
+    # Moment Balance
+    mom_covs = as.matrix(test_data %>% dplyr::select(paste("X", c(1:(numparams - paramrep)), sep="")))
+    mom_tols = round(absstddif(mom_covs, t_ind, .05), 2)
+    mom = list(covs = mom_covs, tols = mom_tols)
+    
+    # Fine balance
+    fine_covs = as.matrix(test_data %>% dplyr::select(paste("X", c((numparams-paramrep + 1):numparams), sep="")))
+    fine = list(covs = fine_covs)
+    
+    # Solver options
+    solver = "glpk"
+    approximate = 1 # not exact!
+    t_max = 60*5 # 5 minute maximum
+    solver = list(name = solver, approximate = approximate, t_max = t_max,
+    round_cplex = 0, trace = 0)
+    
+    # Match
+    out = cardmatch(t_ind, mom = mom, fine = fine, solver = solver)
+    
+    # record times + matches
+    end_time <- Sys.time()
+    # cat("Trial", tempseed-seed+1, "\n")
+    times[tempseed-seed+1] <- end_time - start_time
+    nummatch[tempseed-seed+1] <- length(out$t_id) + length(out$c_id)
+  }
+  
+# Total of distances between matched pairs
+# out$obj_total
+  return(cbind(times, nummatch))
+}
+```
+
+
+Old cardmatch code to ensure it works:
 ```{r}
 start_time <- Sys.time()
 # Load, sort, and attach data
-test_data = test_data[order(test_data$y, decreasing = TRUE), ]
+test_data = test_data[order(test_data$y, decreasing = TRUE),]
 # Treatment indicator; note that the data needs to be sorted in decreasing order
 # according to this treatment indicator
 t_ind = test_data$y
