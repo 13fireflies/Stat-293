@@ -2,6 +2,15 @@
 library(lqa) # version 1.0-3
 library(MASS) # version 3.3.1
 
+# RAN INTO SOME ERRORS, SO RAN THIS:
+# options(warn=2) # changes warnings into errors
+# traceback() # ran after error occurred
+
+# This error seems ok: Error in model.matrix.default(mt, mf, contrasts) : 
+# (converted from warning) non-list contrasts argument ignored
+# https://stackoverflow.com/questions/57664927/warning-in-gam-with-release-of-r-3-6-1
+# https://stackoverflow.com/questions/56637183/warning-message-dummy-from-dummies-package
+
 # look like maybe corresponding packages that do similar functions
 # Look at: Ivon diez, Machine learning in the estimation of causal effects: targeted minimum loss-based estimation and double/debiased machine learning
 # set information for simulating coviariates
@@ -132,7 +141,7 @@ w.full.form = formula(paste("A~",paste(var.list,collapse="+")))
 # then got: Error: $ operator is invalid for atomic vectors
 
 
-for( lil in names(lambda_vec) ){
+for(lil in names(lambda_vec)){
   il = lambda_vec[lil]
   ig = gamma_vals[lil]
 
@@ -172,6 +181,6 @@ wAMD_vec
 # find the lambda value that creates the smallest wAMD
 tt = which.min(wAMD_vec)
 # print out ATE corresponding to smallest wAMD value
-ATE[tt]
-# print out the coefficients for the propensity score that corresponds with smalles wAMD value 
+# ATE[tt]
+# print out the coefficients for the propensity score that corresponds with smallest wAMD value 
 coeff_XA[,tt]
