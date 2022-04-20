@@ -30,11 +30,19 @@ n = 500
 p = 200
 pC = pI = pP = 2
 pS = p - (pC+pI+pP)
+# pC = True Confounders (both outcome + exposure)
+# pI = In outcome model but not exposure model
+# pP = In exposure but not outcome
+# rest = spurious covariates
+
 var.list = c(paste("Xc",1:pC,sep=""),paste("Xp",1:pP,sep=""),paste("Xi",1:pI,sep=""),paste("Xs",1:pS,sep=""))
 # Set strength of relationship between covariates and outcome
-beta_v =  c( 0.6, 0.6, 0.6, 0.6, 0, 0, rep(0,p-6))
+beta_v =  c(0.6, 0.6, 0.6, 0.6, 0, 0, rep(0,p-6))
+# Y = \eta A + b'X + e
 # Set strength of relationship between covariates and treatment
-alpha_v = c( 1.0, 1.0,   0,   0, 1, 1,  rep(0,p-6))
+alpha_v = c(1, 1, 0, 0, 1, 1,  rep(0,p-6))
+# logit(P(A)) = v'X
+
 names(beta_v) = names(alpha_v) = var.list
 ### set true average treatment effect
 bA = 0
@@ -118,25 +126,45 @@ rownames(coeff_XA) = var.list
 ######################################################################################
 # weight model with all possible covariates included, this is passed into lasso function
 w.full.form = formula(paste("A~",paste(var.list,collapse="+")))
+# GOT ERROR:
+# no applicable method for 'lqa' applied to an object of class "formula"
+# decided to change lqa to lqa.formula to test it out
+# then got: Error: $ operator is invalid for atomic vectors
+
+
 for( lil in names(lambda_vec) ){
   il = lambda_vec[lil]
   ig = gamma_vals[lil]
 
   ### create the outcome adaptive lasso penalty with coefficient specific weights determined by outcome model
   oal_pen = adaptive.lasso(lambda=n^(il), al.weights = abs(betaXY)^(-ig))
+  
   ### run outcome-adaptive lasso model with appropriate penalty
-  logit_oal = lqa(w.full.form, data=Data, penalty=oal_pen, family=binomial(logit))
+  logit_oal = lqa.formula(w.full.form, data=Data, penalty=oal_pen, family=binomial(logit))
+  
   # generate propensity score
-  Data[,paste("f.pA",lil,sep="")] = predict(logit_oal)$mu.new
+  # ERROR-CHECKING:
+  # lqa.formula generates the correct class of lqa
+  # print(class(logit_oal))
+  
+  # CHANGED HERE from predict(logit_oal)$mu.new TO predict(logit_oal)
+  # because this caused the original Error: $ operator is invalid for atomic vectors
+  # Data[,paste("f.pA",lil,sep="")] = predict(logit_oal)$mu.new
+  Data[,paste("f.pA",lil,sep="")] = predict(logit_oal)
+  
   # save propensity score coefficients
   coeff_XA[var.list,lil] = coef(logit_oal)[var.list]
+  
   # create inverse probability of treatment weights
   Data[,paste("w",lil,sep="")] = create_weights(fp=Data[,paste("f.pA",lil,sep="")],fA=Data$A)
+  
   # estimate weighted absolute mean different over all covaraites using this lambda to generate weights
   wAMD_vec[lil] = wAMD_function(DataM=Data,varlist=var.list,trt.var="A",
 			wgt=paste("w",lil,sep=""),beta=betaXY)$wAMD
+  
   # save ATE estimate for this lambda value
   ATE[lil] = ATE_est(fY=Data$Y,fw=Data[,paste("w",lil,sep="")],fA=Data$A)
+  
 } # close loop through lambda values
 
 # print out wAMD for all the lambda values tried
