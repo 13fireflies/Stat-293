@@ -520,6 +520,8 @@ simbmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2,
     end_time <- Sys.time()
     times[tempseed-seed+1] <- end_time - start_time
     nummatch[tempseed-seed+1] <- length(out$t_id) + length(out$c_id)
+    
+    # for figuring out the units
     if(tempseed == seed){
       print(end_time - start_time)
     }
@@ -532,10 +534,10 @@ simbmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2,
 
 Note: the parameters need to be manually changed, in case there is a memory overflow.
 ```{r}
-results2 = simbmatch(sampsize=5000)
-cat("Mean Time:", mean(results$times), "\n")
-cat("SD Time:", sd(results$times), "\n")
-cat("Mean Matches:", mean(results$nummatch))
+results2 = simbmatch(sampsize=3000, paramrep=600, numtrials=1)
+cat("Mean Time:", mean(results2$times), "\n")
+cat("SD Time:", sd(results2$times), "\n")
+cat("Mean Matches:", mean(results2$nummatch))
 ```
 
 
@@ -597,8 +599,10 @@ simcmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2,
     end_time <- Sys.time()
     times[tempseed-seed+1] <- end_time - start_time
     nummatch[tempseed-seed+1] <- length(out$t_id) + length(out$c_id)
-    if(tempseed = seed){
-      end_time - start_time
+    
+    # for figuring out the units
+    if(tempseed == seed){
+      print(end_time - start_time)
     }
   }
   return(data.frame(cbind(times, nummatch)))
@@ -607,6 +611,13 @@ simcmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2,
 
 ### Simulations:
 
+Note: the parameters need to be manually changed, in case there is a memory overflow.
+```{r}
+results2 = simcardmatch(sampsize=100)
+cat("Mean Time:", mean(results2$times), "\n")
+cat("SD Time:", sd(results2$times), "\n")
+cat("Mean Matches:", mean(results2$nummatch))
+```
 
 ### old stuff:
 Old cardmatch code to ensure it works:
