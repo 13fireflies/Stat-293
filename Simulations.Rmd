@@ -601,9 +601,8 @@ simcmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2,
     nummatch[tempseed-seed+1] <- length(out$t_id) + length(out$c_id)
     
     # for figuring out the units
-    if(tempseed == seed){
-      print(end_time - start_time)
-    }
+    
+    print(end_time - start_time)
   }
   return(data.frame(cbind(times, nummatch)))
 }
@@ -613,20 +612,21 @@ simcmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2,
 
 Note: the parameters need to be manually changed, in case there is a memory overflow.
 ```{r}
-results = simcmatch(sampsize=2000, numtrials=20)
-cat("Mean Time:", mean(results$times), "\n")
-cat("SD Time:", sd(results$times), "\n")
-cat("Mean Matches:", mean(results$nummatch))
-results
-results = simcmatch(sampsize=5000)
+results = simcmatch(sampsize=100, paramrep=3)
 cat("Mean Time:", mean(results$times), "\n")
 cat("SD Time:", sd(results$times), "\n")
 cat("Mean Matches:", mean(results$nummatch))
 
-results = simcmatch(sampsize=10000)
+results = simcmatch(sampsize=1000, paramrep=3, numtrials=20)
 cat("Mean Time:", mean(results$times), "\n")
 cat("SD Time:", sd(results$times), "\n")
 cat("Mean Matches:", mean(results$nummatch))
+
+results = simcmatch(sampsize=3000, paramrep=3)
+cat("Mean Time:", mean(results$times), "\n")
+cat("SD Time:", sd(results$times), "\n")
+cat("Mean Matches:", mean(results$nummatch))
+results
 ```
 
 ### old stuff:
