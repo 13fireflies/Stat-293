@@ -5,6 +5,15 @@ date: '2022-04-10'
 output: pdf_document
 ---
 
+---
+title: "Stat293"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
 To-Dos:
 - try other matching methods and compute their complexity
 -- make sure profmatch works
@@ -13,6 +22,10 @@ NOTE: cplex code was commented out!
 - try other feature variable selection methods
 -- encode OAL
 
+---
+title: "Stat293"
+output: html_document
+---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -20,7 +33,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Setup:
 
-## Packages:
+Packages:
 ```{r setup, include=FALSE}
 # use (.packages()) to check if a package is properly loaded for your session
 library("designmatch")
@@ -34,9 +47,9 @@ library("MASS")
 
 
 ## Shortreed and Ertefaie: OAL
-Functions for Shortreed and Ertefaie's OAL (taken directly from their supplemental code).
+Functions for Shortreed and Ertefaie's OAL:
 ```{r setup, include=FALSE}
-### define some functions for generating data, ATE estimates, and the wAMD
+### define some functions for generating data, ATE estimates, and the wAMD,
 expit = function(x){ 
  pr = ( exp(x) / (1+exp(x)) ) 
  return(pr)
@@ -68,7 +81,7 @@ wAMD_function = function(DataM,varlist,trt.var,wgt,beta){
 }
 ```
 
-## ProfMatch:
+## ProfMatch function
 
 ```{r setup, include=FALSE}
 # From Eric's paper
@@ -280,7 +293,6 @@ wAMD_function = function(DataM,varlist,trt.var,wgt,beta){
   #! Output
   return(list(obj_total = obj_total, id = id, time = time))
 }
-
 #! Generate the parameters for cardmatch
 .problemparameters_profmatch = function(mom_covs, mom_tols, mom_targets, fine_covs) {
   
@@ -349,13 +361,12 @@ wAMD_function = function(DataM,varlist,trt.var,wgt,beta){
               vtype = vtype))
   
 }
-
 # profmatch
 profmatch = function(t_ind, mom, solver = NULL) {
   
   mom_covs = mom$covs
   mom_tols = mom$tols
-  mom_targets = mom$targets
+  mom_targets = mom$targetsn
   
   levels <- unique(t_ind)
   nlevels <- length(levels)
@@ -383,38 +394,74 @@ profmatch = function(t_ind, mom, solver = NULL) {
   }
   
   out <- list(obj_totals = obj_totals, id = ids, times = times, t_ind = t_ind, mom = mom, solver = solver)
-
   #! Output
   return(out)
 }
 ```
 
-```{r setup, include=FALSE}
-start_time <- Sys.time()
-# Vector of treatment group indicators
-t_ind = test_data$y
-# Covariate matrix
-mom_covs = as.matrix(lalonde[, covs])
-X_mat = test_data[,-1]
-X_mat_sds = apply(X_mat, 2, sd)
-X_tols = 0.05 * X_mat_sds
-X_targets = colMeans(X_mat)
-# Putting it all together
-mom = list(covs = X_mat, tols = X_tols, targets = X_targets)
-t_max = 60*30
-solver = "gurobi"
-approximate = 0
-solver = list(name = solver, t_max = t_max, approximate = approximate, round_cplex = 0, trace = 0)
-# Performing profile matching
-pmatch_out = profmatch(t_ind, mom, solver)
-end_time <- Sys.time()
-end_time - start_time
-# Indices of the treated units and matched controls
-t_id = pmatch_out$t_id
-cat("Number of Matches:", length(t_id), "\n") #gives the total number of matches
+## Prof Match
+
+```{r}
+
+simprofmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2, 
+                      seed=293, numtrials=5){
+  # sampsize, paramrep have same functionality as in samp_data
+  # treated_prob is the random prob of getting treatment
+  # numtrials is the number of trials
+  # Records Times, Matches
+  times <- numeric(numtrials)
+  
+  nummatch <- numeric(numtrials)
+  
+  # For Every Trial:
+  for(tempseed in c(seed:(seed+numtrials-1))){
+    ### DATA GENERAION ###
+    # Treatment Indicator
+    set.seed(tempseed)
+    t_ind <- rbinom(sampsize, size=1, prob=treated_prob)
+    
+    # Matrix of Covariates
+    X_mat = samp_data(seed=tempseed, sampsize=sampsize, paramrep=paramrep)
+    X_mat_sds = apply(X_mat, 2, sd)
+    X_tols = 0.05 * X_mat_sds
+    X_targets = colMeans(X_mat)
+    
+    # Matching start time
+    start_time <- Sys.time()
+
+    # Putting it all together
+    mom = list(covs = X_mat, tols = X_tols, targets = X_targets)
+    t_max = 60*30
+    solver = "gurobi"
+    approximate = 0
+    solver = list(name = solver, t_max = t_max, approximate = approximate, round_cplex = 0, trace = 0)
+    
+    # Performing profile matching
+    pmatch_out = profmatch(t_ind, mom, solver)
+
+    end_time <- Sys.time()
+    end_time - start_time
+    times[tempseed-seed+1] <- end_time - start_time
+    nummatch[tempseed-seed+1] <- length(pmatch_out$id)
+    
+    # for figuring out the units
+    if(tempseed == seed){
+      print(end_time - start_time)
+    }
+  }
+  return(data.frame(cbind(times, nummatch)))
+}
 ```
 
-# Simulate Data 
+```{r}
+results2 = simprofmatch(sampsize=300, paramrep=3, numtrials=1)
+cat("Mean Time:", mean(results2$times), "\n")
+cat("SD Time:", sd(results2$times), "\n")
+cat("Mean Matches:", mean(results2$nummatch))
+```
+
+
+# Simulate Data  o
 
 ## Matching
 Simulation for Matching:
@@ -449,7 +496,7 @@ samp_data <- function(seed=293, sampsize=100, paramrep=3){
 ```
 
 Data Generation for Matching:
-```{r, eval=FALSE}
+```{r}
 # Similar to the parameters in samp_data, but now, we also have a 
 # treated_prob parameter, which gives the odds that an obs is
 # note: parameters not contained here: this is mainly used to copy/paste for
@@ -530,7 +577,7 @@ simbmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2,
 
 Note: the parameters need to be manually changed, in case there is a memory overflow.
 ```{r}
-results2 = simbmatch(sampsize=3000, paramrep=600, numtrials=1)
+results2 = simbmatch(sampsize=300, paramrep=6, numtrials=1)
 cat("Mean Time:", mean(results2$times), "\n")
 cat("SD Time:", sd(results2$times), "\n")
 cat("Mean Matches:", mean(results2$nummatch))
@@ -608,16 +655,20 @@ simcmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2,
 
 Note: the parameters need to be manually changed, in case there is a memory overflow.
 ```{r}
-results = simcmatch(sampsize=3000, paramrep=1)
+results = simcmatch(sampsize=100, paramrep=3)
 cat("Mean Time:", mean(results$times), "\n")
 cat("SD Time:", sd(results$times), "\n")
 cat("Mean Matches:", mean(results$nummatch))
+results = simcmatch(sampsize=1000, paramrep=3, numtrials=20)
+cat("Mean Time:", mean(results$times), "\n")
+cat("SD Time:", sd(results$times), "\n")
+cat("Mean Matches:", mean(results$nummatch))
+results = simcmatch(sampsize=3000, paramrep=3)
+cat("Mean Time:", mean(results$times), "\n")
+cat("SD Time:", sd(results$times), "\n")
+cat("Mean Matches:", mean(results$nummatch))
+results
 ```
-
-```{r}
-results[3,1] <- results[3,1]/60
-```
-
 
 ### old stuff:
 Old cardmatch code to ensure it works:
@@ -687,7 +738,6 @@ samp_data_feat <- function(seed=293, mean_x=0, sig_x=1, rho=0, n=500,
   var.list = c(paste("Xc",1:pC,sep=""), paste("Xp",1:pP,sep=""), 
                paste("Xi",1:pI,sep=""), paste("Xs",1:pS,sep=""))
   names(beta_v) = names(alpha_v) = var.list
-
   ### simulate data
   # generate features:
   Sigma_x = matrix(rho*sig_x^2, nrow=p, ncol=p) 
@@ -711,181 +761,119 @@ samp_data_feat <- function(seed=293, mean_x=0, sig_x=1, rho=0, n=500,
 ## OAL
 
 ```{r}
-#### PARAMETERS ####
-seed = 293
+set.seed(293)
+#### Problem Statment
 mean_x = 0 
 sig_x = 1
+# correlation between features from MVN
+# in paper, tried rho =0, 0.2, 0.5
 rho = 0
+# sample size
 n = 500
+# total number of predictors
 p = 200
 pC = pI = pP = 2
 pS = p - (pC+pI+pP)
-stro = 0.6
-stre = 1
-bA = 0
-numtrials = 5
-lambda_vec = c(-10, -5, -2, -1, -0.75, -0.5, -0.25, 0.25, 0.49)
-gamma_convergence_factor = 2
-tolerance = 1/10^8
-
-# seed: seed for randomization
-# mean_x, sig_x: mean, sd of X covariate
-# rho: correlation between features from MVN
-# in paper, tried rho =0, 0.2, 0.5
-# n: sample size
-# p: # of predictors
-# pC = # of True Confounders (both outcome + exposure)
+# pC = True Confounders (both outcome + exposure)
 # pI = In outcome model but not exposure model
 # pP = In exposure but not outcome
-# pS = spurious covariates
-# stro: strength of relationship between covariates and outcome
-# stre: strength of relationship between covariates and treatment
-# bA: true average treatment effect
-# numtrials: number of trials needed
-# lambda_vec: set vector of possible lambda's to try (taken from S+E)
-# gamma_convergence_factor: see paper
-# tolerance: the cutoff for which variables are selected to either be in
-#            the model or not; cutoff chosen from the paper
-
-set.seed(seed)
-defaultW <- getOption("warn") 
-options(warn = -1) # to stop warnings about non-list contrasts
-
+# rest = spurious covariates
+stro=0.6
+stre=1
 # Set relationship between covariates and outcome
 beta_v = c(rep(stro, pC + pI), rep(0, pS + pP))
 # Y = \eta A + b'X + e
 # Set relationship between covariates and treatment
 alpha_v = c(rep(stre, pC), rep(0, pI), rep(stre, pP), rep(0, pS))
 # logit(P(A)) = v'X
-
-
+### set true average treatment effect
+bA = 0
 var.list = c(paste("Xc",1:pC,sep=""), paste("Xp",1:pP,sep=""), 
              paste("Xi",1:pI,sep=""), paste("Xs",1:pS,sep=""))
 names(beta_v) = names(alpha_v) = var.list
-
-# records # times, covariates selected
-times <- numeric(numtrials)
-numsel <- matrix(rep(0, numtrials*4), nrow = numtrials, ncol=4)
-
-# cycle for every trial
-for(trial in c(1:numtrials))
-{
-
-  #### SIMULATE DATA ####
-  # features:
-  Sigma_x = matrix(rho*sig_x^2, nrow=p, ncol=p) 
-  diag(Sigma_x) = sig_x^2
-  Mean_x = rep(mean_x, p)
-  Data = as.data.frame(mvrnorm(n = n, mu=Mean_x, Sigma = Sigma_x, 
-                               empirical = FALSE))
-  names(Data) = var.list
-  # treatment:
-  gA_x = rowSums(Data[,var.list]*matrix(alpha_v, nrow=n, ncol=p, byrow=TRUE))
-  pA = expit(gA_x)
-  Data$A = as.numeric(runif(n=length(pA)) < pA)
-  # generate outcomes:
-  gY_xA = rowSums(Data[,var.list]*matrix(beta_v, nrow=n, ncol=p, byrow=TRUE))
-  Data$Y = gY_xA + rnorm(n=n,sd=sig_x)
-  Data$Y = Data$Y + Data$A*bA
+### simulate data
+# generate features:
+Sigma_x = matrix(rho*sig_x^2, nrow=p, ncol=p) 
+diag(Sigma_x) = sig_x^2
+Mean_x = rep(mean_x, p)
+Data = as.data.frame(mvrnorm(n = n, mu=Mean_x, Sigma = Sigma_x, 
+                             empirical = FALSE))
+names(Data) = var.list
+# generate treatment:
+gA_x = rowSums(Data[,var.list]*matrix(alpha_v, nrow=n, ncol=p, byrow=TRUE))
+pA = expit(gA_x)
+Data$A = as.numeric(runif(n=length(pA)) < pA) # simulate A 
+# generate outcomes:
+gY_xA = rowSums(Data[,var.list]*matrix(beta_v, nrow=n, ncol=p, byrow=TRUE))   
+Data$Y = gY_xA + rnorm(n=n,sd=sig_x)
+Data$Y = Data$Y + Data$A*bA
+start_time <- Sys.time()
+####### Begin setup for OAL
+# set vector of possible lambda's to try
+lambda_vec = c( -10, -5, -2, -1, -0.75, -0.5, -0.25, 0.25, 0.49)
+names(lambda_vec) = as.character(lambda_vec)
+# lambda_n (n)^(gamma/2 - 1) = n^(gamma_convergence_factor)
+gamma_convergence_factor = 2
+# get the gamma value for each value in the lambda vector that corresponds to convergence factor
+gamma_vals = 2*(gamma_convergence_factor - lambda_vec + 1)
+names(gamma_vals) = names(lambda_vec)
+# Normlize covariates to have mean 0 and standard deviation 1
+temp.mean = colMeans(Data[,var.list])
+Temp.mean = matrix(temp.mean, ncol=length(var.list), nrow=nrow(Data), byrow=TRUE)
+Data[,var.list] = Data[,var.list] - Temp.mean
+temp.sd = apply(Data[var.list], FUN=sd, MARGIN=2)
+Temp.sd = matrix(temp.sd, ncol=length(var.list), nrow=nrow(Data), byrow=TRUE)
+Data[var.list] = Data[,var.list] / Temp.sd
+rm(list=c("temp.mean","Temp.mean","temp.sd","Temp.sd"))
+# estimate outcome model
+y.form = formula(paste("Y~A+",paste(var.list,collapse="+")))
+lm.Y = lm(y.form,data=Data)
+betaXY = coef(lm.Y)[var.list] 
+## Want to save ATE, wAMD and propensity score coefficients for each lambda value
+ATE = wAMD_vec = rep(NA, length(lambda_vec))
+names(ATE) = names(wAMD_vec) = names(lambda_vec)
+coeff_XA = as.data.frame(matrix(NA, nrow=length(var.list), ncol=length(lambda_vec)))
+names(coeff_XA) = names(lambda_vec)
+rownames(coeff_XA) = var.list
+######################################################################################
+#####  Run outcome adaptive lasso for each lambda value 
+######################################################################################
+# weight model with all possible covariates included, this is passed into lasso function
+w.full.form = formula(paste("A~",paste(var.list,collapse="+")))
+# loop through lambda values
+for(lil in names(lambda_vec)){
+  il = lambda_vec[lil]
+  ig = gamma_vals[lil]
+  ### create the outcome adaptive lasso penalty with coefficient specific weights determined by outcome model
+  oal_pen = adaptive.lasso(lambda=n^(il), al.weights = abs(betaXY)^(-ig))
   
+  ### run outcome-adaptive lasso model with appropriate penalty
+  logit_oal = lqa.formula(w.full.form, data=Data, penalty=oal_pen, family=binomial(logit))
   
-  ##### BEGIN OAL SIMS #####
-  start_time <- Sys.time()
+  # generate propensity score
+  Data[,paste("f.pA",lil,sep="")] = predict(logit_oal)
   
-  names(lambda_vec) = as.character(lambda_vec)
-  # get the gamma value for each value in the lambda vector that corresponds to convergence factor
-  gamma_vals = 2*(gamma_convergence_factor - lambda_vec + 1)
-  names(gamma_vals) = names(lambda_vec)
+  # save propensity score coefficients
+  coeff_XA[var.list,lil] = coef(logit_oal)[var.list]
   
-  # Normlize covariates to have mean 0 and standard deviation 1
-  temp.mean = colMeans(Data[,var.list])
-  Temp.mean = matrix(temp.mean, ncol=length(var.list), nrow=nrow(Data), byrow=TRUE)
-  Data[,var.list] = Data[,var.list] - Temp.mean
-  temp.sd = apply(Data[var.list], FUN=sd, MARGIN=2)
-  Temp.sd = matrix(temp.sd, ncol=length(var.list), nrow=nrow(Data), byrow=TRUE)
-  Data[var.list] = Data[,var.list] / Temp.sd
-  rm(list=c("temp.mean","Temp.mean","temp.sd","Temp.sd"))
+  # create inverse probability of treatment weights
+  Data[,paste("w",lil,sep="")] = create_weights(fp=Data[,paste("f.pA",lil,sep="")], fA=Data$A)
   
-  # estimate outcome model
-  y.form = formula(paste("Y~A+",paste(var.list,collapse="+")))
-  lm.Y = lm(y.form,data=Data)
-  betaXY = coef(lm.Y)[var.list] 
+  # estimate weighted absolute mean different over all covaraites using this lambda to generate weights
+  wAMD_vec[lil] = wAMD_function(DataM=Data, varlist=var.list, trt.var="A",
+			wgt=paste("w",lil,sep=""), beta=betaXY)$wAMD
   
-  ## Want to save ATE, wAMD and propensity score coefficients for each lambda value
-  ATE = wAMD_vec = rep(NA, length(lambda_vec))
-  names(ATE) = names(wAMD_vec) = names(lambda_vec)
-  coeff_XA = as.data.frame(matrix(NA, nrow=length(var.list), ncol=length(lambda_vec)))
-  names(coeff_XA) = names(lambda_vec)
-  rownames(coeff_XA) = var.list
+  # save ATE estimate for this lambda value
+  ATE[lil] = ATE_est(fY=Data$Y,fw=Data[,paste("w",lil,sep="")],fA=Data$A)
   
-  ################################################################################
-  #####  Run outcome adaptive lasso for each lambda value 
-  ################################################################################
-  # weight model with all possible covariates included, this is passed into lasso function
-  w.full.form = formula(paste("A~",paste(var.list,collapse="+")))
-  
-  # loop through lambda values
-  for(lil in names(lambda_vec)){
-    il = lambda_vec[lil]
-    ig = gamma_vals[lil]
-  
-    ### create the outcome adaptive lasso penalty with 
-    ### coefficient specific weights determined by outcome model
-    oal_pen = adaptive.lasso(lambda=n^(il), al.weights = abs(betaXY)^(-ig))
-    
-    ### run outcome-adaptive lasso model with appropriate penalty
-    logit_oal = lqa.formula(w.full.form, data=Data, penalty=oal_pen, 
-                            family=binomial(logit))
-    
-    # generate propensity score
-    Data[,paste("f.pA",lil,sep="")] = predict(logit_oal)
-    
-    # save propensity score coefficients
-    coeff_XA[var.list,lil] = coef(logit_oal)[var.list]
-    
-    # create inverse probability of treatment weights
-    Data[,paste("w",lil,sep="")] = create_weights(fp=Data[,paste("f.pA",lil,sep="")], fA=Data$A)
-    
-    # estimate weighted absolute mean different over 
-    # all covaraites using this lambda to generate weights
-    wAMD_vec[lil] = wAMD_function(DataM=Data, varlist=var.list, trt.var="A",
-  			                          wgt=paste("w",lil,sep=""), beta=betaXY)$wAMD
-    
-    # save ATE estimate for this lambda value
-    ATE[lil] = ATE_est(fY=Data$Y,fw=Data[,paste("w",lil,sep="")],fA=Data$A)
-  }
-  
-  # find the lambda value that creates the smallest wAMD
-  tt = which.min(wAMD_vec)
-  
-  #### END OAL ####
-  end_time <- Sys.time()
-  times[trial] <- end_time - start_time
-  
-  # this is used to find the measurement of time
-  if(numtrial == 1){
-    print(end_time - start_time)
-  }
-  
-  # select the coefficients for the propensity score that corresponds 
-  # with smallest wAMD value
-  final_coef = coeff_XA[,tt]
-  
-  # save proportion of covariates chosen
-  numsel[trial,] = c(sum(final_coef[1:pC] > tolerance)/pC, 
-                 sum(final_coef[(1+pC):(pC+pI)] > tolerance)/pI, 
-                 sum(final_coef[(1+pC+pI):(pC+pI+pP)] > tolerance)/pP,
-                 sum(final_coef[(1+pC+pI+pP):p] > tolerance)/pS)
 }
-
-# reset warning settings
-options(warn = defaultW)
-
-numsel = data.frame(numsel)
-colnames(numsel) = c("C", "I", "P", "S")
-cat("Mean Time:", mean(times), "\n")
-cat("SD Time:", sd(times), "\n")
-print(numsel)
+# find the lambda value that creates the smallest wAMD
+tt = which.min(wAMD_vec)
+### END OAL
+end_time <- Sys.time()
+end_time - start_time
+# print out the coefficients for the propensity score that corresponds with smallest wAMD value
+coeff_XA[,tt]
 ```
 
 
