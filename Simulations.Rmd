@@ -608,12 +608,7 @@ simcmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2,
 
 Note: the parameters need to be manually changed, in case there is a memory overflow.
 ```{r}
-results = simcmatch(sampsize=1000, paramrep=20, numtrials=1)
-cat("Mean Time:", mean(results$times), "\n")
-cat("SD Time:", sd(results$times), "\n")
-cat("Mean Matches:", mean(results$nummatch))
-results
-results = simcmatch(sampsize=3000, paramrep=20)
+results = simcmatch(sampsize=5000, paramrep=9, numtrials=3)
 cat("Mean Time:", mean(results$times), "\n")
 cat("SD Time:", sd(results$times), "\n")
 cat("Mean Matches:", mean(results$nummatch))
@@ -724,7 +719,9 @@ sig_x = 1
 rho = 0
 n = 500
 p = 200
-pC = pI = pP = 2
+pC = 2
+pI = 2
+pP = 2
 pS = p - (pC+pI+pP)
 stro = 0.6
 stre = 1
