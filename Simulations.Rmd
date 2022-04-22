@@ -1,18 +1,7 @@
 ---
-title: "293 Project Simulations"
-author: "Jason"
-date: '2022-04-10'
-output: pdf_document
----
-
----
 title: "Stat293"
 output: html_document
 ---
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 To-Dos:
 - try other matching methods and compute their complexity
@@ -21,11 +10,6 @@ NOTE: cplex code was commented out!
 - need data generation method for feature variable selection
 - try other feature variable selection methods
 -- encode OAL
-
----
-title: "Stat293"
-output: html_document
----
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -454,7 +438,7 @@ simprofmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2,
 ```
 
 ```{r}
-results2 = simprofmatch(sampsize=300, paramrep=3, numtrials=1)
+results2 = simprofmatch(sampsize=100, paramrep=1, numtrials=1)
 cat("Mean Time:", mean(results2$times), "\n")
 cat("SD Time:", sd(results2$times), "\n")
 cat("Mean Matches:", mean(results2$nummatch))
@@ -577,7 +561,7 @@ simbmatch <- function(sampsize=100, paramrep=1, treated_prob=0.2,
 
 Note: the parameters need to be manually changed, in case there is a memory overflow.
 ```{r}
-results2 = simbmatch(sampsize=300, paramrep=6, numtrials=1)
+results2 = simbmatch(sampsize=2000, paramrep=600, numtrials=1)
 cat("Mean Time:", mean(results2$times), "\n")
 cat("SD Time:", sd(results2$times), "\n")
 cat("Mean Matches:", mean(results2$nummatch))
