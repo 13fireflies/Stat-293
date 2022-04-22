@@ -685,17 +685,11 @@ seed = 293
 mean_x = 0 
 sig_x = 1
 rho = 0
-<<<<<<< Updated upstream
-n = 500
-p = 200
+n = 1000
+p = 20
 pC = 2
 pI = 2
 pP = 2
-=======
-n = 10000
-p = 20
-pC = pI = pP = 2
->>>>>>> Stashed changes
 pS = p - (pC+pI+pP)
 stro = 0.6
 stre = 1
