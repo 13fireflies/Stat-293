@@ -633,7 +633,7 @@ samp_data_feat <- function(seed=293, mean_x=0, sig_x=1, rho=0, n=500,
   # mean_x: mean of x
   # sig_x: sd of x
   # rho: correlation between features from MVN
-  # in paper, tried rho =0, 0.2, 0.5
+  # in paper, tried rho = 0, 0.2, 0.5
   # n: sample size
   # p: total number of predictors
   # pC: true confounders
@@ -1046,6 +1046,9 @@ oaldirty = function(n=100, p=20, pC=2, pI=2, pP=2, numtrials=5){
 
 
 ```{r}
-oaldirty(n=22, numtrials=100)
+oaldirty(n=150, p=100, pC=5, pP=5, pI=5)
+oaldirty(n=300, p=100, pC=5, pP=5, pI=5)
+oaldirty(n=1000, p=100, pC=5, pP=5, pI=5)
+oaldirty(n=5000, p=100, pC=5, pP=5, pI=5)
 ```
 
